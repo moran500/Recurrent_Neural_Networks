@@ -94,12 +94,59 @@ regressor.compile(optimizer = 'adam', loss = 'mean_squared_error')
 # Fiiting and learn the RNN
 regressor.fit(X_train, y_train, epochs = 100, batch_size = 32)
 
-
-
+# Save RNN model
+regressor.save('RNN_model.h5')
+regressor.save_weights('RNN_model_weights.h5')
 
 
 #=================================================================================================================
 # Making the prediction and visualization the results
+
+# loading model from file
+from keras.models import load_model
+regressor = load_model('RNN_model.h5')
+
+# Loading the real stock prices of 2017
+# pouzijeme to iste co sme pouzili pri loadovani traningovych dat
+dataset_test = pd.read_csv('Google_Stock_Price_Test.csv')
+real_stock_price = dataset_test.iloc[:, 1:2].values
+
+# Getting the predicted stock prices for 2017
+# tuto v funkcia concat vlastne spoji 2 datasety do jedneho, 
+# parameter axis = 0 hovori ze chceme spojit 2 stlpce a vertikalna os ma oznacenie 0, horizontalna by mala 1
+dataset_total = pd.concat((dataset_train['Open'], dataset_test['Open']), axis = 0)
+# teraz musime zo vsetkych dat vybrat tie skupiny po 60 ktore budu fungovat ako vstupne hodnoty pre predikciu
+inputs = dataset_total[len(dataset_total) - len(dataset_test) - 60:].values
+# kedze sme nepouzili fukciu iloc() na vytvorenie inputs premennej budeme musiet dostat inputs premennu do roznakeho shapu
+# ako sme malo vstupne data pri testovani
+inputs = inputs.reshape(-1,1)
+# tu aplikujem features scaling
+inputs = sc.transform(inputs)
+# tu potrebujeme zase rozdelit data po 60 ako sme to spravili v data preprocessing kroku
+X_test = []
+# tu je 80 preto lebo v test datach mame 20 dni cize 60+20=80
+for i in range(60, 80):
+    # Toto tu prida do pola 60 hodnot ktore budu pouzite pri uceni ako vstupne hodnoty X pri uceni
+    X_test.append(inputs[i-60:i, 0])
+# toto tu urobi z premennych tyu LIST numpy ARRAY polia, cize zmeni ich typ tak aby sa dalo s nimi dalej pracovat
+X_test = np.array(X_test)
+# Reshape, to iste ako v preproccesing kroku
+X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
+# teraz urobim predikciu dat
+predicted_stock_price = regressor.predict(X_test)
+# touto funkciou pretransformujem predikovane hodnoty zase na hodnoty bez feature scallingu aby davali zmysel
+predicted_stock_price = sc.inverse_transform(predicted_stock_price)
+
+# Visualisation the result of prediction
+# zaujimave ze to nezadavam do ziadnej premennej len to tak bijem a poviem na konci ze show
+plt.plot(real_stock_price, color = 'red', label = 'Real Google Stock Price')
+plt.plot(predicted_stock_price, color = 'blue', label = 'Predicted Google Stock Price')
+plt.title('Google Stock Price Prediction')
+plt.xlabel('Time')
+plt.ylabel('Price')
+plt.legend
+plt.show
+
 
 
 #=================================================================================================================
